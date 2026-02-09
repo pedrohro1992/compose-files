@@ -1,0 +1,105 @@
+
+version: "3.7"
+
+services:
+  pdns-admin:
+    image: powerdnsadmin/pda-legacy:latest
+    container_name: pdns-admin
+    environment:
+      - SECRET_KEY=a-very-secret-key
+    networks:
+      - infra
+    ports:
+      - "9191:80"
+    volumes:
+      - pda-data:/data
+    depends_on:
+      - pdns-server
+
+  pdns-server:
+    image: psitrax/powerdns:v4.3.0
+    hostname: powerdns
+    restart: unless-stopped
+    ports:
+      - "53:53/tcp"  # Mapeia a porta 53 do host para a 53 do container (TCP)
+      - "53:53/udp"  # Mapeia a porta 53 do host para a 53 do container (UDP)
+      - "8081"
+    networks:
+      - infra 
+      - kind
+    command: >
+      --api=yes
+      --api-key=keyname
+      --webserver-address=0.0.0.0
+      --webserver-allow-from=0.0.0.0/0
+      --local-address=0.0.0.0
+    environment:
+      PDNS_gmysql_host: pdns-server-mysql
+      PDNS_gmysql_port: 3306
+      PDNS_gmysql_dbname: powerdns
+      PDNS_gmysql_user: powerdns-svc-user
+      PDNS_gmysql_password: powerdns-svc-user-pw
+      # Falback
+      MYSQL_HOST: pdns-server-mysql
+      MYSQL_DB: powerdns
+      MYSQL_USER: powerdns-svc-user
+      MYSQL_PASS: powerdns-svc-user-pw
+    depends_on:
+      pdns-server-mysql:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  pdns-server-mysql:
+    image: mysql/mysql-server:8.0.21
+    hostname: powerdns-db
+    container_name: pdns-server-mysql 
+    restart: unless-stopped
+    ulimits:
+      nofile: # Fix memory leak issue on some systems when LimitCORE=infinity (containerd)
+        soft: 1048576
+        hard: 1048576
+    environment:
+      MYSQL_DATABASE: powerdns
+      MYSQL_USER: powerdns-svc-user
+      MYSQL_PASSWORD: powerdns-svc-user-pw
+      MYSQL_ROOT_PASSWORD: root-password-change-me
+    # Required because otherwise the pdns-server crashes with Authentication plugin 'caching_sha2_password' cannot be loaded: Error loading shared library /usr/lib/mysql/plugin/caching_sha2_password.so: No such file or directory
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysql", "-h", "localhost", "-u", "powerdns-svc-user", "-ppowerdns-svc-user-pw", "-e", "SELECT 1"]
+      timeout: 10s
+      retries: 5
+    networks:
+      - infra 
+    ports:
+      - '3306'
+    volumes:
+      - pdns-mysql-volume:/var/lib/mysql
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+networks:
+  kind: # define the kind network
+    external: true # specifies that the network already exists in docker
+  infra:
+    external: true
+volumes:
+  pdns-mysql-volume:
+    external: true
+  pda-data:
+    external: false
+
+# Sobe powerdns admin
+# docker run -d -e SECRET_KEY='a-very-secret-key' --net infra -v pda-data:/data -p 9191:80 powerdnsadmin/pda-legacy:latest

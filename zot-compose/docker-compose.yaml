@@ -1,0 +1,26 @@
+version: "3.7"
+
+services:
+  zot:
+    image: ghcr.io/project-zot/zot-linux-amd64:latest
+    container_name: zot-registry
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    networks:
+      infra:
+        ipv4_address: 172.19.0.100 # IP Fixo na rede infra
+      kind:
+        ipv4_address: 172.18.0.100
+    volumes:
+      - zot-storage-volume:/var/lib/zot
+
+networks:
+  infra:
+    external: true
+  kind:
+    external: true
+
+volumes:
+  zot-storage-volume:
+    external: true
