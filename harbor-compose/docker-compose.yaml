@@ -1,0 +1,135 @@
+version: "3.9"
+
+services:
+
+  log:
+    image: goharbor/harbor-log:v2.10.0
+    container_name: harbor-log
+    restart: unless-stopped
+    volumes:
+      - ./harbor-data/log:/var/log/docker
+    networks:
+      infra:
+        ipv4_address: 172.19.0.101
+      kind:
+
+  registry:
+    image: goharbor/registry-photon:v2.10.0
+    container_name: harbor-registry
+    restart: unless-stopped
+    depends_on:
+      - log
+    volumes:
+      - harbor-data-volume:/storage
+    environment:
+      REGISTRY_HTTP_SECRET: harborsecret
+    networks:
+      infra:
+      kind:
+
+  registryctl:
+    image: goharbor/harbor-registryctl:v2.10.0
+    container_name: harbor-registryctl
+    restart: unless-stopped
+    volumes:
+      - harbor-data-volume:/storage
+    networks:
+      infra:
+      kind:
+
+  core:
+    image: goharbor/harbor-core:v2.10.0
+    container_name: harbor-core
+    restart: unless-stopped
+    depends_on:
+      - registry
+      - registryctl
+      - redis
+    environment:
+      CORE_SECRET: coresecret
+      JOBSERVICE_SECRET: jobsecret
+
+      # 🔴 CACHE (obrigatório)
+      CACHE_ENABLED: "true"
+      CACHE_TYPE: "redis"
+
+      # 🔴 REDIS
+      REDIS_HOST: harbor-redis
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+    volumes:
+      - ./harbor-config/harbor.yml:/etc/core/harbor.yml
+      - harbor-data-volume:/data
+      - ./harbor-certs:/etc/harbor/certs
+    networks:
+      infra:
+      kind:
+
+  portal:
+    image: goharbor/harbor-portal:v2.10.0
+    container_name: harbor-portal
+    restart: unless-stopped
+    depends_on:
+      - core
+    networks:
+      infra:
+      kind:
+
+  jobservice:
+    image: goharbor/harbor-jobservice:v2.10.0
+    container_name: harbor-jobservice
+    restart: unless-stopped
+    depends_on:
+      - core
+      - redis
+    environment:
+      JOBSERVICE_SECRET: jobsecret
+
+      # 🔴 CACHE (obrigatório)
+      CACHE_ENABLED: "true"
+      CACHE_TYPE: "redis"
+
+      # 🔴 REDIS
+      REDIS_HOST: harbor-redis
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+    volumes:
+      - ./harbor-data/jobservice:/var/log/jobs
+    networks:
+      infra:
+      kind:
+
+  redis:
+    image: redis:7
+    container_name: harbor-redis
+    restart: unless-stopped
+    networks:
+      infra:
+      kind:
+
+  proxy:
+    image: goharbor/nginx-photon:v2.10.0
+    container_name: harbor-proxy
+    restart: unless-stopped
+    depends_on:
+      - core
+      - portal
+    ports:
+      - "443:8443"
+    volumes:
+      - ./harbor-certs:/etc/harbor/certs
+    networks:
+      infra:
+        ipv4_address: 172.19.0.105
+      kind:
+        ipv4_address: 172.18.0.105
+
+networks:
+  infra:
+    external: true
+  kind:
+    external: true
+
+volumes:
+  harbor-data-volume:
+    external: true

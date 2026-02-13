@@ -13,6 +13,9 @@ services:
       kind:
         ipv4_address: 172.18.0.100
     volumes:
+      - ./zot-config/zot-config.json:/etc/zot/config.json
+      - ./zot-certs/domain.crt:/etc/zot/domain.crt
+      - ./zot-certs/domain.key:/etc/zot/domain.key
       - zot-storage-volume:/var/lib/zot
 
 networks:
