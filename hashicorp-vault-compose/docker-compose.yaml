@@ -1,0 +1,49 @@
+version: '3.6'
+
+services:
+  vault:
+    image: vault:1.13.3
+    container_name: vault
+    restart: always
+
+    cap_add:
+      - IPC_LOCK
+
+    networks:
+      kind:
+        ipv4_address: 172.18.0.12 
+
+    ports:
+      - "8200:8200"  # acesso externo via host (browser ou vault cli)
+
+    environment:
+      VAULT_ADDR: "http://172.18.0.50:8200"
+      VAULT_LOCAL_CONFIG: |
+        {
+          "listener": [{
+            "tcp": {
+              "address": "0.0.0.0:8200",
+              "tls_disable": "1"
+            }
+          }],
+          "ui": true,
+          "storage": [{
+            "file": {
+              "path": "/vault/data"
+            }
+          }]
+        }
+
+    volumes:
+      - ./config:/vault/config:Z
+      - vault-data-volume:/vault/data:Z
+
+    command: vault server -config vault/config/local.json
+
+networks:
+  kind:
+    external: true
+
+volumes:
+  vault-data-volume:
+    external: true
