@@ -1,10 +1,11 @@
-
 version: "3.7"
 
 services:
   pdns-admin:
     image: powerdnsadmin/pda-legacy:latest
     container_name: pdns-admin
+    restart: unless-stopped
+
     environment:
       - SECRET_KEY=a-very-secret-key
     networks:
@@ -21,12 +22,14 @@ services:
     hostname: powerdns
     restart: unless-stopped
     ports:
-      - "53:53/tcp"  # Mapeia a porta 53 do host para a 53 do container (TCP)
-      - "53:53/udp"  # Mapeia a porta 53 do host para a 53 do container (UDP)
+      - "53:53/tcp" # Mapeia a porta 53 do host para a 53 do container (TCP)
+      - "53:53/udp" # Mapeia a porta 53 do host para a 53 do container (UDP)
       - "8081"
     networks:
-      - infra 
-      - kind
+      kind:
+        ipv4_address: 172.18.0.14
+      infra:
+        ipv4_address: 172.19.0.22
     command: >
       --api=yes
       --api-key=keyname
@@ -50,16 +53,16 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
 
   pdns-server-mysql:
     image: mysql/mysql-server:8.0.21
     hostname: powerdns-db
-    container_name: pdns-server-mysql 
+    container_name: pdns-server-mysql
     restart: unless-stopped
     ulimits:
       nofile: # Fix memory leak issue on some systems when LimitCORE=infinity (containerd)
@@ -73,22 +76,33 @@ services:
     # Required because otherwise the pdns-server crashes with Authentication plugin 'caching_sha2_password' cannot be loaded: Error loading shared library /usr/lib/mysql/plugin/caching_sha2_password.so: No such file or directory
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
-      test: ["CMD", "mysql", "-h", "localhost", "-u", "powerdns-svc-user", "-ppowerdns-svc-user-pw", "-e", "SELECT 1"]
+      test:
+        [
+          "CMD",
+          "mysql",
+          "-h",
+          "localhost",
+          "-u",
+          "powerdns-svc-user",
+          "-ppowerdns-svc-user-pw",
+          "-e",
+          "SELECT 1",
+        ]
       timeout: 10s
       retries: 5
     networks:
-      - infra 
+      - infra
     ports:
-      - '3306'
+      - "3306"
     volumes:
       - pdns-mysql-volume:/var/lib/mysql
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
 networks:
   kind: # define the kind network

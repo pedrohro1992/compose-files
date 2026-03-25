@@ -1,0 +1,48 @@
+# Gitea act_runner - Configuração Completa e Corrigida
+log:
+  level: info
+
+runner:
+  # O arquivo .runner será gerado após o registro com sucesso
+  file: .runner
+  capacity: 2
+  envs:
+    A_TEST_ENV_NAME_1: a_test_env_value_1
+  timeout: 3h
+  shutdown_timeout: 0s
+  # Mantemos false para usar o certificado que mapeamos via volume no Compose
+  insecure: true
+  fetch_timeout: 5s
+  fetch_interval: 2s
+  github_mirror: ''
+  # Deixamos vazio no YAML para o Runner ler as labels do docker-compose.yml
+  labels: []
+
+cache:
+  enabled: true
+  dir: ""
+  host: ""
+  port: 0
+  external_server: ""
+
+container:
+  # Rede onde o Gitea e o Runner estão (docker compose)
+  network: "infra"
+  
+  # ESSENCIAL: Permite que a Action rode comandos de Docker (build/push)
+  privileged: true
+  
+  # ESSENCIAL: Faz com que os containers das Actions (Lint, Build, etc) 
+  options: "--add-host=gitea.cacetinho.internal.infra:172.19.0.5 -e GIT_SSL_NO_VERIFY=true -v /home/pramos/Workspace/git-repos/github.com/pedrohro1992/compose-files/gitea/certs:/usr/local/share/ca-certificates/gitea.crt:ro"
+  
+  workdir_parent:
+  valid_volumes:
+    - '**' # Permite montagem de volumes se necessário
+  docker_host: ""
+  force_pull: true
+  force_rebuild: false
+  require_docker: false
+  docker_timeout: 0s
+
+host:
+  workdir_parent:

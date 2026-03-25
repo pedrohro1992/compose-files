@@ -1,0 +1,55 @@
+services:
+  gitea:
+    image: gitea/gitea:latest
+    container_name: gitea
+    environment:
+      - GITEA__repository__ENABLE_PUSH_CREATE_USER=true
+      - GITEA__actions__ENABLED=true # Habilita suporte a Actions
+      - GITEA__packages__ENABLED=true # Habilita o Registry
+      - GITEA__server__PROTOCOL=https
+      - GITEA__server__DOMAIN=gitea.cacetinho.internal.infra
+      - GITEA__server__ROOT_URL=https://gitea.cacetinho.internal.infra:3000/
+      - GITEA__server__CERT_FILE=/data/certs/fullchain.crt
+      - GITEA__server__KEY_FILE=/data/certs/gitea.key
+      - GITEA__server__SSH_PORT=2222
+    restart: always
+    networks:
+      kind:
+        ipv4_address: 172.18.0.22
+      infra:
+        ipv4_address: 172.19.0.5
+    volumes:
+      - ./gitea-data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./certs:/data/certs:ro
+    ports:
+      - "3000:3000"
+      - "2222:22"
+
+  runner:
+    image: gitea/act_runner:latest
+    container_name: gitea-runner
+    restart: always
+    networks:
+      - infra
+    environment:
+      - CONFIG_FILE=/data/config.yaml
+      - GITEA_INSTANCE_URL=https://gitea.cacetinho.internal.infra:3000
+      - GITEA_RUNNER_REGISTRATION_TOKEN=rfJbmBND6q3IxoOkBINHWPjJhZRoQ8wlgw7LJF1R
+      - GITEA_RUNNER_NAME=runner-kubebuilder
+      - GIT_SSL_NO_VERIFY=true
+      # - GITEA_RUNNER_LABELS=ubuntu-latest:docker://node:20-bullseye,go-latest:docker://golang:1.22-bookworm
+    volumes:
+      - ./runner-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./certs/gitea.crt:/usr/local/share/ca-certificates/gitea.crt:ro
+    command: sh -c "update-ca-certificates && act_runner daemon"
+    extra_hosts:
+      - "gitea.cacetinho.internal.infra:172.19.0.5"
+
+networks:
+  kind: # define the kind network
+    external: true # specifies that the network already exists in docker
+  infra:
+    external: true
