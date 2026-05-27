@@ -23,3 +23,12 @@ sudo chown -R 999:999 ~/docker-data/powerdns/data/mysql
 ````bash
 docker compose -f ./power-dns-compose/docker-compose.yaml up -d
 ````
+
+````bash 
+docker volume create --driver local \
+  --opt type=none \
+  --opt device=$HOME/docker-data \
+  --opt o=bind \
+  vault-data-volume
+````
+

@@ -1,4 +1,4 @@
-version: '3.6'
+version: "3.6"
 
 services:
   vault:
@@ -11,13 +11,14 @@ services:
 
     networks:
       kind:
-        ipv4_address: 172.18.0.12 
+        ipv4_address: 172.18.0.12
 
     ports:
-      - "8200:8200"  # acesso externo via host (browser ou vault cli)
+      - "8200:8200" # acesso externo via host (browser ou vault cli)
 
     environment:
       VAULT_ADDR: "http://172.18.0.50:8200"
+      VAULT_LOG_LEVEL: "debug"
       VAULT_LOCAL_CONFIG: |
         {
           "listener": [{
